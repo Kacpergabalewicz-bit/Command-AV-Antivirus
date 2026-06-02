@@ -363,7 +363,7 @@ class CommandAVApp(tb.Window):
 
         self.vpn_name_var = tk.StringVar()
         self.vpn_server_var = tk.StringVar()
-        self.vpn_type_var = tk.StringVar(value="Pptp")
+        self.vpn_type_var = tk.StringVar(value="Automatic")
         self.vpn_username_var = tk.StringVar()
         self.vpn_password_var = tk.StringVar()
         self.vpn_psk_var = tk.StringVar()
@@ -377,8 +377,7 @@ class CommandAVApp(tb.Window):
         type_row = tb.Frame(form)
         type_row.pack(fill=X, pady=6)
         tb.Label(type_row, text=self.t("vpn_type"), width=20).pack(side=LEFT)
-        self.vpn_type_combo = ttk.Combobox(type_row, textvariable=self.vpn_type_var, state="readonly", values=["Pptp", "Sstp", "Ikev2", "L2tp"])
-        self.vpn_type_combo.pack(side=LEFT, fill=X, expand=True)
+        tb.Label(type_row, text=self.t("vpn_auto_mode")).pack(side=LEFT, fill=X, expand=True)
 
         self._add_form_row(form, self.t("username"), self.vpn_username_var)
         self._add_form_row(form, self.t("password"), self.vpn_password_var, show="*")
@@ -803,6 +802,16 @@ class CommandAVApp(tb.Window):
             return str(self.vpn_list.get(selection[0]))
         return self.vpn_name_var.get().strip()
 
+    def _resolve_auto_vpn_name(self) -> str:
+        selected = self._selected_vpn_name()
+        if selected:
+            return selected
+        profiles = self.vpn_manager.load_profiles()
+        if not profiles:
+            return ""
+        default_profile = next((item for item in profiles if item.name.lower() in {"default", "domyslny", "domyślny"}), None)
+        return default_profile.name if default_profile else profiles[0].name
+
     def _load_selected_vpn_profile(self, _event=None) -> None:
         name = self._selected_vpn_name()
         profile = next((item for item in self.vpn_manager.load_profiles() if item.name == name), None)
@@ -821,7 +830,7 @@ class CommandAVApp(tb.Window):
         profile = VPNProfile(
             name=self.vpn_name_var.get().strip(),
             server_address=self.vpn_server_var.get().strip(),
-            vpn_type=self.vpn_type_var.get().strip() or "Pptp",
+            vpn_type="Automatic",
             username=self.vpn_username_var.get().strip(),
             l2tp_psk=self.vpn_psk_var.get().strip(),
         )
@@ -838,13 +847,14 @@ class CommandAVApp(tb.Window):
             messagebox.showerror(self._title("error"), self.t("vpn_action_failed", error=str(exc)))
 
     def connect_selected_vpn(self) -> None:
-        name = self._selected_vpn_name()
+        name = self._resolve_auto_vpn_name()
         if not name:
-            messagebox.showwarning(self._title("warning"), self.t("select_profile"))
+            messagebox.showwarning(self._title("warning"), self.t("vpn_no_profiles"))
             return
-        username = self.vpn_username_var.get().strip()
-        password = self.vpn_password_var.get().strip()
         try:
+            profile = next((item for item in self.vpn_manager.load_profiles() if item.name == name), None)
+            username = (profile.username if profile else "").strip()
+            password = self.vpn_password_var.get().strip()
             self.vpn_manager.connect(name, username, password)
             self.vpn_status_var.set(self.t("vpn_connected", name=name))
             messagebox.showinfo(self._title("info"), self.t("vpn_connect_success"))
@@ -852,9 +862,9 @@ class CommandAVApp(tb.Window):
             messagebox.showerror(self._title("error"), self.t("vpn_action_failed", error=str(exc)))
 
     def disconnect_selected_vpn(self) -> None:
-        name = self._selected_vpn_name()
+        name = self._resolve_auto_vpn_name()
         if not name:
-            messagebox.showwarning(self._title("warning"), self.t("select_profile"))
+            messagebox.showwarning(self._title("warning"), self.t("vpn_no_profiles"))
             return
         try:
             self.vpn_manager.disconnect(name)

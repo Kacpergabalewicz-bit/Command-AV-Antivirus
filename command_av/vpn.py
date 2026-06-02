@@ -57,10 +57,13 @@ class WindowsVPNManager:
         server = self._escape(profile.server_address)
         tunnel = self._escape(profile.vpn_type)
         psk = self._escape(profile.l2tp_psk)
+        tunnel_param = "" if profile.vpn_type.lower() in {"automatic", "auto"} else f"; $params['TunnelType'] = '{tunnel}'"
         script = (
             f"$existing = Get-VpnConnection -Name '{name}' -ErrorAction SilentlyContinue; "
             f"if ($existing) {{ Remove-VpnConnection -Name '{name}' -Force -PassThru | Out-Null }}; "
-            f"$params = @{{ Name = '{name}'; ServerAddress = '{server}'; TunnelType = '{tunnel}'; RememberCredential = $true; Force = $true }}; "
+            f"$params = @{{ Name = '{name}'; ServerAddress = '{server}'; RememberCredential = $true; Force = $true }}"
+            + tunnel_param
+            + "; "
             + (f"$params['L2tpPsk'] = '{psk}'; " if profile.vpn_type == "L2tp" and profile.l2tp_psk else "")
             + "Add-VpnConnection @params | Out-Null"
         )
