@@ -86,6 +86,36 @@ class WindowsVPNManager:
         if result.returncode != 0:
             raise RuntimeError((result.stderr or result.stdout or "Failed to connect VPN").strip())
 
+    def list_windows_connections(self) -> list[str]:
+        script = "Get-VpnConnection -AllUserConnection -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name"
+        result = self._ps(script)
+        if result.returncode != 0:
+            return []
+        return [line.strip() for line in (result.stdout or "").splitlines() if line.strip()]
+
+    def connect_first_available(self, preferred_names: list[str] | None = None) -> str:
+        preferred_names = preferred_names or []
+        available = self.list_windows_connections()
+        candidates: list[str] = []
+        for name in preferred_names:
+            if name and name in available and name not in candidates:
+                candidates.append(name)
+        for name in available:
+            if name not in candidates:
+                candidates.append(name)
+
+        if not candidates:
+            raise RuntimeError("No Windows VPN connections are configured.")
+
+        last_error = ""
+        for name in candidates:
+            result = subprocess.run(["rasdial", name], capture_output=True, text=True, timeout=40)
+            if result.returncode == 0:
+                return name
+            last_error = (result.stderr or result.stdout or "Failed to connect VPN").strip()
+
+        raise RuntimeError(last_error or "Failed to connect any available Windows VPN connection.")
+
     def disconnect(self, name: str) -> None:
         result = subprocess.run(["rasdial", name, "/disconnect"], capture_output=True, text=True, timeout=40)
         if result.returncode != 0 and "No connections" not in (result.stdout or ""):
@@ -95,3 +125,8 @@ class WindowsVPNManager:
         result = subprocess.run(["rasdial"], capture_output=True, text=True, timeout=20)
         output = (result.stdout or "")
         return name.lower() in output.lower()
+
+    def disconnect_all(self) -> None:
+        result = subprocess.run(["rasdial", "/disconnect"], capture_output=True, text=True, timeout=20)
+        if result.returncode != 0 and "No connections" not in (result.stdout or ""):
+            raise RuntimeError((result.stderr or result.stdout or "Failed to disconnect VPN").strip())
