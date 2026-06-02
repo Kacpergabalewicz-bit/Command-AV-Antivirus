@@ -348,20 +348,31 @@ class CommandAVApp(tb.Window):
         form_wrap = tb.Frame(tab)
         form_wrap.pack(fill=BOTH, expand=True)
 
+        self.vpn_name_var = tk.StringVar()
+        self.vpn_server_var = tk.StringVar()
+        self.vpn_type_var = tk.StringVar(value="Automatic")
+        self.vpn_username_var = tk.StringVar()
+        self.vpn_password_var = tk.StringVar()
+        self.vpn_psk_var = tk.StringVar()
+
         form = tb.Labelframe(form_wrap, text=self.t("vpn"), padding=12)
         form.pack(fill=BOTH, expand=True)
 
-        tb.Label(
-            form,
-            text=self.t("vpn_auto_full_info"),
-            wraplength=760,
-            justify="left",
-        ).pack(anchor="w", pady=(0, 10))
+        self._add_form_row(form, self.t("server_address"), self.vpn_server_var)
+
+        type_row = tb.Frame(form)
+        type_row.pack(fill=X, pady=6)
+        tb.Label(type_row, text=self.t("vpn_type"), width=20).pack(side=LEFT)
+        tb.Label(type_row, text=self.t("vpn_auto_mode")).pack(side=LEFT, fill=X, expand=True)
+
+        self._add_form_row(form, self.t("username"), self.vpn_username_var)
+        self._add_form_row(form, self.t("password"), self.vpn_password_var, show="*")
+        self._add_form_row(form, self.t("l2tp_psk"), self.vpn_psk_var, show="*")
 
         action_row = tb.Frame(form)
         action_row.pack(fill=X, pady=(14, 8))
-        tb.Button(action_row, text=self.t("connect"), bootstyle="primary", command=self.connect_selected_vpn).pack(side=LEFT)
-        tb.Button(action_row, text=self.t("disconnect"), bootstyle="warning", command=self.disconnect_selected_vpn).pack(side=LEFT, padx=8)
+        tb.Button(action_row, text=self.t("connect"), bootstyle="primary", command=self.connect_selected_vpn).pack(side=LEFT, padx=8)
+        tb.Button(action_row, text=self.t("disconnect"), bootstyle="warning", command=self.disconnect_selected_vpn).pack(side=LEFT)
 
         status_box = tb.Labelframe(form, text=self.t("vpn_status"), padding=12)
         status_box.pack(fill=X, pady=(10, 0))
@@ -770,19 +781,94 @@ class CommandAVApp(tb.Window):
         for profile in profiles:
             self.vpn_list.insert(END, profile.name)
 
-    def connect_selected_vpn(self) -> None:
+    def _selected_vpn_name(self) -> str:
+        return "Command AV VPN"
+
+    def _resolve_auto_vpn_name(self) -> str:
+        return self._selected_vpn_name()
+
+    def _load_selected_vpn_profile(self, _event=None) -> None:
+        name = self._selected_vpn_name()
+        profile = next((item for item in self.vpn_manager.load_profiles() if item.name == name), None)
+        if not profile:
+            return
+        self.vpn_name_var.set(profile.name)
+        self.vpn_server_var.set(profile.server_address)
+        self.vpn_type_var.set(profile.vpn_type)
+        self.vpn_username_var.set(profile.username)
+        self.vpn_psk_var.set(profile.l2tp_psk)
+        self.vpn_password_var.set("")
+        connected = self.vpn_manager.is_connected(profile.name)
+        self.vpn_status_var.set(self.t("vpn_connected", name=profile.name) if connected else self.t("vpn_ready"))
+
+    def save_vpn_profile(self) -> None:
+        profile = VPNProfile(
+            name=self.vpn_name_var.get().strip(),
+            server_address=self.vpn_server_var.get().strip(),
+            vpn_type="Automatic",
+            username=self.vpn_username_var.get().strip(),
+            l2tp_psk=self.vpn_psk_var.get().strip(),
+        )
+        if not profile.name or not profile.server_address:
+            messagebox.showwarning(self._title("warning"), self.t("vpn_profile_required"))
+            return
         try:
-            name = self.vpn_manager.connect_first_available(["Command AV VPN", "Default VPN", "VPN"])
+            self.vpn_manager.upsert_profile(profile)
+            self.vpn_manager.create_or_update_connection(profile)
+            self._refresh_vpn_profiles()
+            self.vpn_status_var.set(self.t("vpn_profile_saved"))
+            messagebox.showinfo(self._title("info"), self.t("vpn_profile_saved"))
+        except Exception as exc:
+            messagebox.showerror(self._title("error"), self.t("vpn_action_failed", error=str(exc)))
+
+    def connect_selected_vpn(self) -> None:
+        name = self._resolve_auto_vpn_name()
+        server = self.vpn_server_var.get().strip()
+        if not server:
+            messagebox.showwarning(self._title("warning"), self.t("vpn_server_required"))
+            return
+        try:
+            profile = VPNProfile(
+                name=name,
+                server_address=server,
+                vpn_type="Automatic",
+                username=self.vpn_username_var.get().strip(),
+                l2tp_psk=self.vpn_psk_var.get().strip(),
+            )
+            self.vpn_manager.upsert_profile(profile)
+            self.vpn_manager.create_or_update_connection(profile)
+            username = profile.username
+            password = self.vpn_password_var.get().strip()
+            self.vpn_manager.connect(name, username, password)
             self.vpn_status_var.set(self.t("vpn_connected", name=name))
             messagebox.showinfo(self._title("info"), self.t("vpn_connect_success"))
         except Exception as exc:
             messagebox.showerror(self._title("error"), self.t("vpn_action_failed", error=str(exc)))
 
     def disconnect_selected_vpn(self) -> None:
+        name = self._resolve_auto_vpn_name()
         try:
-            self.vpn_manager.disconnect_all()
-            self.vpn_status_var.set(self.t("vpn_disconnected", name="VPN"))
+            self.vpn_manager.disconnect(name)
+            self.vpn_status_var.set(self.t("vpn_disconnected", name=name))
             messagebox.showinfo(self._title("info"), self.t("vpn_disconnect_success"))
+        except Exception as exc:
+            messagebox.showerror(self._title("error"), self.t("vpn_action_failed", error=str(exc)))
+
+    def delete_selected_vpn_profile(self) -> None:
+        name = self._selected_vpn_name()
+        if not name:
+            messagebox.showwarning(self._title("warning"), self.t("select_profile"))
+            return
+        try:
+            self.vpn_manager.delete_profile(name)
+            self._refresh_vpn_profiles()
+            self.vpn_name_var.set("")
+            self.vpn_server_var.set("")
+            self.vpn_username_var.set("")
+            self.vpn_password_var.set("")
+            self.vpn_psk_var.set("")
+            self.vpn_status_var.set(self.t("vpn_profile_deleted"))
+            messagebox.showinfo(self._title("info"), self.t("vpn_profile_deleted"))
         except Exception as exc:
             messagebox.showerror(self._title("error"), self.t("vpn_action_failed", error=str(exc)))
 
