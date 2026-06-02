@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import queue
+import sys
 import threading
 from dataclasses import asdict
 from pathlib import Path
@@ -32,10 +33,12 @@ LOG_DIR = APP_DIR / "logs"
 
 class CommandAVApp(tb.Window):
     def __init__(self) -> None:
-        super().__init__(themename="cyborg")
+        super().__init__(themename="darkly")
         self.title("Command AV")
         self.geometry("1520x940")
         self.minsize(1240, 760)
+        self._apply_visual_style()
+        self._set_window_icon()
 
         signature_file = ensure_default_signature_store(APP_DIR)
         self.signatures = load_signatures(signature_file)
@@ -94,18 +97,18 @@ class CommandAVApp(tb.Window):
 
         header = tb.Frame(self.container)
         header.pack(fill=X)
-        tb.Label(header, text="Command AV", font=("Segoe UI", 28, "bold"), bootstyle="inverse-info").pack(anchor="w")
-        tb.Label(header, text=self.t("subtitle"), font=("Segoe UI", 11), bootstyle="secondary").pack(anchor="w", pady=(4, 12))
+        tb.Label(header, text="🛡  Command AV", font=("Segoe UI Variable", 28, "bold"), bootstyle="info").pack(anchor="w")
+        tb.Label(header, text=self.t("subtitle"), font=("Segoe UI Variable", 11), bootstyle="secondary").pack(anchor="w", pady=(4, 12))
 
         action_bar = tb.Frame(self.container)
         action_bar.pack(fill=X, pady=(0, 12))
-        tb.Button(action_bar, text=self.t("quick_scan"), bootstyle="success", command=self.start_quick_scan).pack(side=LEFT, padx=(0, 8))
-        tb.Button(action_bar, text=self.t("full_scan"), bootstyle="warning", command=self.start_full_scan).pack(side=LEFT, padx=8)
-        tb.Button(action_bar, text=self.t("scan_folder"), bootstyle="info", command=self.pick_folder_and_scan).pack(side=LEFT, padx=8)
-        tb.Button(action_bar, text=self.t("scan_file"), bootstyle="info-outline", command=self.pick_file_and_scan).pack(side=LEFT, padx=8)
-        tb.Button(action_bar, text=self.t("scan_processes"), bootstyle="secondary", command=self.scan_processes_only).pack(side=LEFT, padx=8)
-        tb.Button(action_bar, text=self.t("toggle_live_guard"), bootstyle="danger", command=self.toggle_live_guard).pack(side=LEFT, padx=8)
-        tb.Button(action_bar, text=self.t("save_report"), bootstyle="primary", command=self.save_report).pack(side=RIGHT)
+        tb.Button(action_bar, text=self.t("quick_scan"), bootstyle="info", command=self.start_quick_scan).pack(side=LEFT, padx=(0, 8))
+        tb.Button(action_bar, text=self.t("full_scan"), bootstyle="secondary", command=self.start_full_scan).pack(side=LEFT, padx=8)
+        tb.Button(action_bar, text=self.t("scan_folder"), bootstyle="secondary-outline", command=self.pick_folder_and_scan).pack(side=LEFT, padx=8)
+        tb.Button(action_bar, text=self.t("scan_file"), bootstyle="secondary-outline", command=self.pick_file_and_scan).pack(side=LEFT, padx=8)
+        tb.Button(action_bar, text=self.t("scan_processes"), bootstyle="info-outline", command=self.scan_processes_only).pack(side=LEFT, padx=8)
+        tb.Button(action_bar, text=self.t("toggle_live_guard"), bootstyle="warning-outline", command=self.toggle_live_guard).pack(side=LEFT, padx=8)
+        tb.Button(action_bar, text=self.t("save_report"), bootstyle="info-outline", command=self.save_report).pack(side=RIGHT)
 
         cards = tb.Frame(self.container)
         cards.pack(fill=X, pady=(0, 12))
@@ -121,10 +124,10 @@ class CommandAVApp(tb.Window):
         self._create_card(counters, self.t("quarantine"), self.stats_quarantine_var).pack(side=LEFT, fill=X, expand=True, padx=10)
         self._create_card(counters, self.t("processes"), self.stats_process_var).pack(side=LEFT, fill=X, expand=True, padx=(10, 0))
 
-        self.progress = tb.Progressbar(self.container, mode="indeterminate", bootstyle="striped-info")
+        self.progress = tb.Progressbar(self.container, mode="indeterminate", bootstyle="info")
         self.progress.pack(fill=X, pady=(0, 14))
 
-        self.notebook = tb.Notebook(self.container, bootstyle="info")
+        self.notebook = tb.Notebook(self.container, bootstyle="secondary")
         self.notebook.pack(fill=BOTH, expand=True)
 
         dashboard_tab = tb.Frame(self.notebook, padding=12)
@@ -155,9 +158,34 @@ class CommandAVApp(tb.Window):
         self._build_logs_tab(logs_tab)
 
     def _create_card(self, parent, title: str, variable: tk.StringVar):
-        card = tb.Labelframe(parent, text=title, padding=14, bootstyle="dark")
-        tb.Label(card, textvariable=variable, font=("Segoe UI", 11, "bold"), wraplength=280, justify="left").pack(anchor="w")
+        card = tb.Labelframe(parent, text=title, padding=14, bootstyle="secondary")
+        tb.Label(card, textvariable=variable, font=("Segoe UI Variable", 11, "bold"), wraplength=280, justify="left").pack(anchor="w")
         return card
+
+    def _asset_path(self, relative: str) -> Path:
+        if getattr(sys, "frozen", False):
+            base = Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent))
+        else:
+            base = Path(__file__).resolve().parent.parent
+        return base / relative
+
+    def _set_window_icon(self) -> None:
+        icon_path = self._asset_path("assets/command_av.ico")
+        if icon_path.exists():
+            try:
+                self.iconbitmap(str(icon_path))
+            except tk.TclError:
+                pass
+
+    def _apply_visual_style(self) -> None:
+        self.option_add("*Font", ("Segoe UI Variable", 10))
+        style = ttk.Style(self)
+        style.configure("TButton", padding=(12, 8), font=("Segoe UI Variable", 10))
+        style.configure("TLabel", font=("Segoe UI Variable", 10))
+        style.configure("TLabelframe.Label", font=("Segoe UI Variable", 10, "bold"))
+        style.configure("Treeview", rowheight=28, font=("Segoe UI Variable", 10))
+        style.configure("Treeview.Heading", font=("Segoe UI Variable", 10, "bold"))
+        style.configure("TNotebook.Tab", padding=(14, 8), font=("Segoe UI Variable", 10, "bold"))
 
     def _build_dashboard_tab(self, tab) -> None:
         left = tb.Frame(tab)
@@ -183,8 +211,10 @@ class CommandAVApp(tb.Window):
     def _build_findings_tab(self, tab) -> None:
         actions = tb.Frame(tab)
         actions.pack(fill=X, pady=(0, 8))
-        tb.Button(actions, text=self.t("to_quarantine"), bootstyle="danger", command=self.quarantine_selected).pack(side=LEFT)
-        tb.Button(actions, text=self.t("clear_results"), bootstyle="secondary", command=self.clear_results).pack(side=LEFT, padx=8)
+        tb.Button(actions, text=self.t("to_quarantine"), bootstyle="warning-outline", command=self.quarantine_selected).pack(side=LEFT)
+        tb.Button(actions, text=self.t("delete_selected_suspicious"), bootstyle="danger", command=self.delete_selected_suspicious).pack(side=LEFT, padx=8)
+        tb.Button(actions, text=self.t("delete_all_suspicious"), bootstyle="danger-outline", command=self.delete_all_suspicious).pack(side=LEFT, padx=8)
+        tb.Button(actions, text=self.t("clear_results"), bootstyle="secondary-outline", command=self.clear_results).pack(side=LEFT, padx=8)
 
         columns = ("path", "threat", "severity", "source", "method", "score")
         self.results_tree = tb.Treeview(tab, columns=columns, show="headings", height=22)
@@ -550,6 +580,48 @@ class CommandAVApp(tb.Window):
                 moved += 1
         self._refresh_quarantine()
         messagebox.showinfo(self._title("info"), self.t("moved_to_quarantine", count=moved))
+
+    def _delete_files_from_findings(self, item_ids: list[str]) -> tuple[int, int]:
+        deleted = 0
+        failed = 0
+        for item_id in item_ids:
+            finding = self.finding_map.get(item_id)
+            if not finding or finding.source != "filesystem":
+                continue
+            file_path = Path(finding.path)
+            try:
+                if file_path.exists() and file_path.is_file():
+                    file_path.unlink()
+                    deleted += 1
+            except OSError:
+                failed += 1
+
+        selected_set = set(item_ids)
+        self.findings = [finding for index, finding in enumerate(self.findings) if str(index) not in selected_set]
+        self.last_stats.infected_files = len(self.findings)
+        self._populate_results(self.findings)
+        self._refresh_counters()
+        return deleted, failed
+
+    def delete_selected_suspicious(self) -> None:
+        selected = list(self.results_tree.selection())
+        if not selected:
+            messagebox.showinfo(self._title("info"), self.t("select_delete_results"))
+            return
+        if not messagebox.askyesno(self._title("warning"), self.t("confirm_delete_selected_results")):
+            return
+        deleted, failed = self._delete_files_from_findings(selected)
+        messagebox.showinfo(self._title("info"), self.t("deleted_suspicious_files", count=deleted, failed=failed))
+
+    def delete_all_suspicious(self) -> None:
+        all_ids = list(self.finding_map.keys())
+        if not all_ids:
+            messagebox.showinfo(self._title("info"), self.t("select_delete_results"))
+            return
+        if not messagebox.askyesno(self._title("warning"), self.t("confirm_delete_all_results")):
+            return
+        deleted, failed = self._delete_files_from_findings(all_ids)
+        messagebox.showinfo(self._title("info"), self.t("deleted_suspicious_files", count=deleted, failed=failed))
 
     def _refresh_quarantine(self) -> None:
         entries = load_manifest(QUARANTINE_DIR)
