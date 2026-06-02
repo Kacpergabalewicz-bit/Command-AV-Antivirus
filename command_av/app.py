@@ -29,12 +29,13 @@ APP_DIR = Path.home() / ".command_av"
 QUARANTINE_DIR = APP_DIR / "quarantine"
 REPORT_DIR = APP_DIR / "reports"
 LOG_DIR = APP_DIR / "logs"
+APP_NAME = "Command AV Antivirus security & VPN"
 
 
 class CommandAVApp(tb.Window):
     def __init__(self) -> None:
         super().__init__(themename="darkly")
-        self.title("Command AV")
+        self.title(APP_NAME)
         self.geometry("1520x940")
         self.minsize(1240, 760)
         self._apply_visual_style()
@@ -69,7 +70,7 @@ class CommandAVApp(tb.Window):
             self.start_live_guard(silent=True)
         self.after(200, self._poll_queue)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
-        self.logger.info("Command AV started")
+        self.logger.info(f"{APP_NAME} started")
 
     def t(self, key: str, **kwargs) -> str:
         return tr(self.language, key, **kwargs)
@@ -97,7 +98,7 @@ class CommandAVApp(tb.Window):
 
         header = tb.Frame(self.container)
         header.pack(fill=X)
-        tb.Label(header, text="🛡  Command AV", font=("Segoe UI Variable", 28, "bold"), bootstyle="info").pack(anchor="w")
+        tb.Label(header, text=f"🛡  {APP_NAME}", font=("Segoe UI Variable", 28, "bold"), bootstyle="info").pack(anchor="w")
         tb.Label(header, text=self.t("subtitle"), font=("Segoe UI Variable", 11), bootstyle="secondary").pack(anchor="w", pady=(4, 12))
 
         action_bar = tb.Frame(self.container)
@@ -782,7 +783,7 @@ class CommandAVApp(tb.Window):
             self.vpn_list.insert(END, profile.name)
 
     def _selected_vpn_name(self) -> str:
-        return "Command AV VPN"
+        return f"{APP_NAME} VPN"
 
     def _resolve_auto_vpn_name(self) -> str:
         return self._selected_vpn_name()

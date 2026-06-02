@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 
-APP_NAME = "Command AV"
+APP_NAME = "Command AV Antivirus security & VPN"
 INSTALL_ROOT = Path.home() / "AppData" / "Local" / "Programs" / APP_NAME
 DESKTOP_DIR = Path.home() / "Desktop"
 START_MENU_DIR = Path.home() / "AppData" / "Roaming" / "Microsoft" / "Windows" / "Start Menu" / "Programs"
@@ -65,25 +65,25 @@ def resolve_source_file(filename: str) -> Path:
 
 
 def install_app() -> Path:
-    source_exe = resolve_source_file("Command AV.exe")
+    source_exe = resolve_source_file(f"{APP_NAME}.exe")
     source_icon = resolve_source_file("command_av.ico")
 
     INSTALL_ROOT.mkdir(parents=True, exist_ok=True)
-    installed_exe = INSTALL_ROOT / "Command AV.exe"
+    installed_exe = INSTALL_ROOT / f"{APP_NAME}.exe"
     installed_icon = INSTALL_ROOT / "command_av.ico"
 
     shutil.copy2(source_exe, installed_exe)
     shutil.copy2(source_icon, installed_icon)
 
-    create_shortcut(DESKTOP_DIR / "Command AV.lnk", installed_exe, installed_icon)
-    create_shortcut(START_MENU_DIR / "Command AV.lnk", installed_exe, installed_icon)
+    create_shortcut(DESKTOP_DIR / f"{APP_NAME}.lnk", installed_exe, installed_icon)
+    create_shortcut(START_MENU_DIR / f"{APP_NAME}.lnk", installed_exe, installed_icon)
 
     uninstall_script = INSTALL_ROOT / "uninstall.bat"
     uninstall_script.write_text(
         "@echo off\n"
-        "taskkill /IM \"Command AV.exe\" /F >nul 2>nul\n"
-        f"del \"{DESKTOP_DIR / 'Command AV.lnk'}\" >nul 2>nul\n"
-        f"del \"{START_MENU_DIR / 'Command AV.lnk'}\" >nul 2>nul\n"
+        f"taskkill /IM \"{APP_NAME}.exe\" /F >nul 2>nul\n"
+        f"del \"{DESKTOP_DIR / (APP_NAME + '.lnk')}\" >nul 2>nul\n"
+        f"del \"{START_MENU_DIR / (APP_NAME + '.lnk')}\" >nul 2>nul\n"
         f"del \"{installed_exe}\" >nul 2>nul\n"
         f"del \"{installed_icon}\" >nul 2>nul\n"
         "del \"%~f0\"\n",
@@ -96,7 +96,7 @@ def install_app() -> Path:
 class InstallerApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("Command AV Installer")
+        self.title(f"{APP_NAME} Installer")
         self.geometry("620x320")
         self.resizable(False, False)
         self.configure(bg="#101826")
@@ -109,7 +109,7 @@ class InstallerApp(tk.Tk):
         container = ttk.Frame(self, padding=20)
         container.pack(fill="both", expand=True)
 
-        ttk.Label(container, text="Command AV Installer", font=("Segoe UI", 20, "bold")).pack(anchor="w", pady=(0, 12))
+        ttk.Label(container, text=f"{APP_NAME} Installer", font=("Segoe UI", 20, "bold")).pack(anchor="w", pady=(0, 12))
         ttk.Label(
             container,
             text="Instalator skopiuje aplikację do folderu użytkownika i utworzy skróty na pulpicie oraz w menu Start.",
@@ -139,12 +139,12 @@ class InstallerApp(tk.Tk):
         except Exception as exc:
             self.progress.stop()
             self.status_var.set("Błąd instalacji")
-            messagebox.showerror("Command AV Installer", f"Nie udało się zainstalować aplikacji.\n\n{exc}")
+            messagebox.showerror(f"{APP_NAME} Installer", f"Nie udało się zainstalować aplikacji.\n\n{exc}")
             return
 
         self.progress.stop()
         self.status_var.set("Instalacja zakończona")
-        if messagebox.askyesno("Command AV Installer", f"Zainstalowano poprawnie.\n\nUruchomić teraz?\n\n{installed_exe}"):
+        if messagebox.askyesno(f"{APP_NAME} Installer", f"Zainstalowano poprawnie.\n\nUruchomić teraz?\n\n{installed_exe}"):
             subprocess.Popen([str(installed_exe)], shell=False)
 
 

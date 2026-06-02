@@ -1,4 +1,4 @@
-# Command AV - Antivirus Security Application
+# Command AV Antivirus security & VPN
 
 A comprehensive desktop security application for Windows with advanced scanning, real-time monitoring, threat quarantine, and multilingual VPN integration.
 
@@ -64,11 +64,11 @@ python main.py
 ```
 
 Or launch directly:
-- Double-click `Command AV.pyw`
+- Double-click `Command AV Antivirus security & VPN.pyw`
 
 **Executable Mode:**
 ```bash
-dist/Command AV.exe
+dist/Command AV Antivirus security & VPN.exe
 ```
 
 ## 🔨 Building Executable
@@ -80,8 +80,8 @@ Build a standalone Windows executable using PyInstaller:
 ```
 
 The compiled files will appear in the `dist` folder:
-- `Command AV.exe` - Main antivirus application
-- `Command AV Installer.exe` - Windows installer with shortcuts
+- `Command AV Antivirus security & VPN.exe` - Main antivirus application
+- `Command AV Antivirus security & VPN Installer.exe` - Windows installer with shortcuts
 
 ## 📋 Project Structure
 
@@ -112,7 +112,7 @@ Command-AV/
 
 ## 🌍 Language Support
 
-Command AV supports 6 languages with full UI localization:
+Command AV Antivirus security & VPN supports 6 languages with full UI localization:
 
 | Language | Code |
 |----------|------|
