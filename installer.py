@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox, ttk
-
-import win32com.client
 
 
 APP_NAME = "Command AV"
@@ -24,17 +23,50 @@ def bundled_path(filename: str) -> Path:
 
 
 def create_shortcut(shortcut_path: Path, target: Path, icon_path: Path) -> None:
-    shell = win32com.client.Dispatch("WScript.Shell")
-    shortcut = shell.CreateShortCut(str(shortcut_path))
-    shortcut.TargetPath = str(target)
-    shortcut.WorkingDirectory = str(target.parent)
-    shortcut.IconLocation = str(icon_path)
-    shortcut.save()
+    shortcut_path.parent.mkdir(parents=True, exist_ok=True)
+    ps_script = (
+        "$shell = New-Object -ComObject WScript.Shell; "
+        f"$shortcut = $shell.CreateShortcut('{shortcut_path}'); "
+        f"$shortcut.TargetPath = '{target}'; "
+        f"$shortcut.WorkingDirectory = '{target.parent}'; "
+        f"$shortcut.IconLocation = '{icon_path}'; "
+        "$shortcut.Save()"
+    )
+    subprocess.run(
+        [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            ps_script,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def resolve_source_file(filename: str) -> Path:
+    candidates: list[Path] = [bundled_path(filename)]
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        candidates.extend([
+            exe_dir / filename,
+            exe_dir / "dist" / filename,
+        ])
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    searched = "\n".join(str(path) for path in candidates)
+    raise FileNotFoundError(f"Missing required file: {filename}\nSearched in:\n{searched}")
 
 
 def install_app() -> Path:
-    source_exe = bundled_path("Command AV.exe")
-    source_icon = bundled_path("command_av.ico")
+    source_exe = resolve_source_file("Command AV.exe")
+    source_icon = resolve_source_file("command_av.ico")
 
     INSTALL_ROOT.mkdir(parents=True, exist_ok=True)
     installed_exe = INSTALL_ROOT / "Command AV.exe"
@@ -113,8 +145,6 @@ class InstallerApp(tk.Tk):
         self.progress.stop()
         self.status_var.set("Instalacja zakończona")
         if messagebox.askyesno("Command AV Installer", f"Zainstalowano poprawnie.\n\nUruchomić teraz?\n\n{installed_exe}"):
-            import subprocess
-
             subprocess.Popen([str(installed_exe)], shell=False)
 
 
